@@ -13,8 +13,11 @@
  * limitations under the License.
  */
 
-
 package org.gearvrf;
+
+import java.util.concurrent.Future;
+
+import org.gearvrf.utility.Threads;
 
 /**
  * A "post effect" shader is a GL shader which can be inserted into the pipeline
@@ -87,6 +90,10 @@ public class GVRPostEffect extends GVRHybridObject implements
         setTexture(MAIN_TEXTURE, texture);
     }
 
+    public void setMainTexture(Future<GVRTexture> texture) {
+        setTexture(MAIN_TEXTURE, texture);
+    }
+
     public GVRTexture getTexture(String key) {
         long ptr = NativePostEffectData.getTexture(getPtr(), key);
         if (ptr == 0) {
@@ -98,6 +105,20 @@ public class GVRPostEffect extends GVRHybridObject implements
 
     public void setTexture(String key, GVRTexture texture) {
         NativePostEffectData.setTexture(getPtr(), key, texture.getPtr());
+    }
+
+    public void setTexture(final String key, final Future<GVRTexture> texture) {
+        Threads.spawn(new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    setTexture(key, texture.get());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     public float getFloat(String key) {
@@ -130,6 +151,18 @@ public class GVRPostEffect extends GVRHybridObject implements
 
     public void setVec4(String key, float x, float y, float z, float w) {
         NativePostEffectData.setVec4(getPtr(), key, x, y, z, w);
+    }
+
+    public void setMat4(String key,
+            float x1, float y1, float z1, float w1,
+            float x2, float y2, float z2, float w2,
+            float x3, float y3, float z3, float w3,
+            float x4, float y4, float z4, float w4) {
+        NativePostEffectData.setMat4(getPtr(), key,
+                x1, y1, z1, w1,
+                x2, y2, z2, w2,
+                x3, y3, z3, w3,
+                x4, y4, z4, w4);
     }
 }
 
@@ -164,4 +197,10 @@ class NativePostEffectData {
 
     public static native void setVec4(long postEffectData, String key, float x,
             float y, float z, float w);
+
+    public static native void setMat4(long postEffectData, String key,
+            float x1, float y1, float z1, float w1,
+            float x2, float y2, float z2, float w2,
+            float x3, float y3, float z3, float w3,
+            float x4, float y4, float z4, float w4);
 }
