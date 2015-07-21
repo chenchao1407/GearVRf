@@ -15,6 +15,7 @@
 
 #include "activity_jni.h"
 #include <jni.h>
+#include <sstream>
 #include <glm/gtc/type_ptr.hpp>
 #include "VrApi_Helpers.h"
 #include "objects/scene_object.h"
@@ -27,12 +28,11 @@ namespace gvr {
 
 extern "C" {
 
-long Java_org_gearvrf_GVRActivity_nativeSetAppInterface(
-        JNIEnv * jni, jclass clazz, jobject activity,
-        jstring fromPackageName, jstring commandString,
-        jstring uriString)
-{
-    return (new GVRActivity(*jni,activity))->SetActivity( jni, clazz, activity, fromPackageName, commandString, uriString );
+long Java_org_gearvrf_GVRActivity_nativeSetAppInterface(JNIEnv * jni,
+        jclass clazz, jobject activity, jstring fromPackageName,
+        jstring commandString, jstring uriString) {
+    return (new GVRActivity(*jni, activity))->SetActivity(jni, clazz, activity,
+            fromPackageName, commandString, uriString);
 
 }
 
@@ -84,9 +84,8 @@ GVRActivity::GVRActivity(JNIEnv & jni_, jobject activityObject_)
 }
 
 GVRActivity::~GVRActivity() {
-    if ( javaObject != 0 )
-    {
-        UiJni->DeleteGlobalRef( javaObject );
+    if (javaObject != 0) {
+        UiJni->DeleteGlobalRef(javaObject);
     }
 }
 
@@ -94,7 +93,7 @@ jmethodID GVRActivity::GetStaticMethodID(jclass clazz, const char * name,
         const char * signature) {
     jmethodID mid = UiJni->GetStaticMethodID(clazz, name, signature);
     if (!mid) {
-        FAIL( "couldn't get %s", name);
+        FAIL("couldn't get %s", name);
     }
     return mid;
 }
@@ -102,7 +101,7 @@ jmethodID GVRActivity::GetStaticMethodID(jclass clazz, const char * name,
 jmethodID GVRActivity::GetMethodID(const char * name, const char * signature) {
     jmethodID mid = UiJni->GetMethodID(activityClass, name, signature);
     if (!mid) {
-        FAIL( "couldn't get %s", name);
+        FAIL("couldn't get %s", name);
     }
     return mid;
 }
@@ -110,7 +109,7 @@ jmethodID GVRActivity::GetMethodID(const char * name, const char * signature) {
 jclass GVRActivity::GetGlobalClassReference(const char * className) const {
     jclass lc = UiJni->FindClass(className);
     if (lc == 0) {
-        FAIL( "FindClass( %s ) failed", className);
+        FAIL("FindClass( %s ) failed", className);
     }
     // Turn it into a global ref, so we can safely use it in the VR thread
     jclass gc = (jclass) UiJni->NewGlobalRef(lc);
@@ -120,8 +119,7 @@ jclass GVRActivity::GetGlobalClassReference(const char * className) const {
     return gc;
 }
 
-void GVRActivity::Configure( OVR::ovrSettings & settings )
-{
+void GVRActivity::Configure(OVR::ovrSettings & settings) {
     //General settings.
     JNIEnv *env = app->GetVrJni();
     jobject vrSettings = env->CallObjectMethod(javaObject,
@@ -152,26 +150,33 @@ void GVRActivity::Configure( OVR::ovrSettings & settings )
             env->GetFieldID(vrAppSettingsClass, "useProtectedFramebuffer",
                     "Z"));
 
-
-
     //Settings for EyeBufferParms.
     jobject eyeParmsSettings = env->GetObjectField(vrSettings,
             env->GetFieldID(vrAppSettingsClass, "eyeBufferParms",
                     "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms;"));
     jclass eyeParmsClass = env->GetObjectClass(eyeParmsSettings);
-    settings.EyeBufferParms.multisamples = env->GetIntField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "multiSamples", "I"));
-    settings.EyeBufferParms.WidthScale = env->GetIntField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "widthScale", "I"));
-    jint resolution = env->GetIntField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "resolution", "I"));
-    if(resolution == -1){
-        env->SetIntField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "resolution", "I"), settings.EyeBufferParms.resolution);
-    }else{
+    settings.EyeBufferParms.multisamples = env->GetIntField(eyeParmsSettings,
+            env->GetFieldID(eyeParmsClass, "multiSamples", "I"));
+    settings.EyeBufferParms.WidthScale = env->GetIntField(eyeParmsSettings,
+            env->GetFieldID(eyeParmsClass, "widthScale", "I"));
+    jint resolution = env->GetIntField(eyeParmsSettings,
+            env->GetFieldID(eyeParmsClass, "resolution", "I"));
+    if (resolution == -1) {
+        env->SetIntField(eyeParmsSettings,
+                env->GetFieldID(eyeParmsClass, "resolution", "I"),
+                settings.EyeBufferParms.resolution);
+    } else {
         settings.EyeBufferParms.resolution = resolution;
     }
-    jobject depthFormat = env->GetObjectField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "depthFormat", "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$DepthFormat;"));
+    jobject depthFormat =
+            env->GetObjectField(eyeParmsSettings,
+                    env->GetFieldID(eyeParmsClass, "depthFormat",
+                            "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$DepthFormat;"));
     jmethodID getValueID;
-    getValueID = env->GetMethodID(env->GetObjectClass(depthFormat),"getValue","()I");
-    int depthFormatValue = (int)env->CallIntMethod(depthFormat, getValueID);
-    switch(depthFormatValue){
+    getValueID = env->GetMethodID(env->GetObjectClass(depthFormat), "getValue",
+            "()I");
+    int depthFormatValue = (int) env->CallIntMethod(depthFormat, getValueID);
+    switch (depthFormatValue) {
     case 0:
         settings.EyeBufferParms.depthFormat = OVR::DEPTH_0;
         break;
@@ -187,10 +192,14 @@ void GVRActivity::Configure( OVR::ovrSettings & settings )
     default:
         break;
     }
-    jobject colorFormat = env->GetObjectField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "colorFormat", "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$ColorFormat;"));
-    getValueID = env->GetMethodID(env->GetObjectClass(colorFormat),"getValue","()I");
-    int colorFormatValue = (int)env->CallIntMethod(colorFormat, getValueID);
-    switch(colorFormatValue){
+    jobject colorFormat =
+            env->GetObjectField(eyeParmsSettings,
+                    env->GetFieldID(eyeParmsClass, "colorFormat",
+                            "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$ColorFormat;"));
+    getValueID = env->GetMethodID(env->GetObjectClass(colorFormat), "getValue",
+            "()I");
+    int colorFormatValue = (int) env->CallIntMethod(colorFormat, getValueID);
+    switch (colorFormatValue) {
     case 0:
         settings.EyeBufferParms.colorFormat = OVR::COLOR_565;
         break;
@@ -209,10 +218,15 @@ void GVRActivity::Configure( OVR::ovrSettings & settings )
     default:
         break;
     }
-    jobject textureFilter = env->GetObjectField(eyeParmsSettings, env->GetFieldID(eyeParmsClass, "textureFilter", "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$TextureFilter;"));
-    getValueID = env->GetMethodID(env->GetObjectClass(textureFilter),"getValue","()I");
-    int textureFilterValue = (int)env->CallIntMethod(textureFilter, getValueID);
-    switch(textureFilterValue){
+    jobject textureFilter =
+            env->GetObjectField(eyeParmsSettings,
+                    env->GetFieldID(eyeParmsClass, "textureFilter",
+                            "Lorg/gearvrf/utility/VrAppSettings$EyeBufferParms$TextureFilter;"));
+    getValueID = env->GetMethodID(env->GetObjectClass(textureFilter),
+            "getValue", "()I");
+    int textureFilterValue = (int) env->CallIntMethod(textureFilter,
+            getValueID);
+    switch (textureFilterValue) {
     case 0:
         settings.EyeBufferParms.textureFilter = OVR::TEXTURE_FILTER_NEAREST;
         break;
@@ -230,58 +244,173 @@ void GVRActivity::Configure( OVR::ovrSettings & settings )
     }
 
     //Settings for ModeParms
-    jobject modeParms = env->GetObjectField(vrSettings, env->GetFieldID(vrAppSettingsClass, "modeParms", "Lorg/gearvrf/utility/VrAppSettings$ModeParms;"));
+    jobject modeParms = env->GetObjectField(vrSettings,
+            env->GetFieldID(vrAppSettingsClass, "modeParms",
+                    "Lorg/gearvrf/utility/VrAppSettings$ModeParms;"));
     jclass modeParmsClass = env->GetObjectClass(modeParms);
-    settings.ModeParms.AllowPowerSave = env->GetBooleanField(modeParms, env->GetFieldID(modeParmsClass, "allowPowerSave", "Z"));
-    settings.ModeParms.ResetWindowFullscreen = env->GetBooleanField(modeParms, env->GetFieldID(modeParmsClass, "resetWindowFullScreen","Z"));
-    settings.ModeParms.GpuLevel = env->GetIntField(modeParms, env->GetFieldID(modeParmsClass, "gpuLevel", "I"));
-    settings.ModeParms.CpuLevel = env->GetIntField(modeParms, env->GetFieldID(modeParmsClass, "cpuLevel", "I"));
+    settings.ModeParms.AllowPowerSave = env->GetBooleanField(modeParms,
+            env->GetFieldID(modeParmsClass, "allowPowerSave", "Z"));
+    settings.ModeParms.ResetWindowFullscreen = env->GetBooleanField(modeParms,
+            env->GetFieldID(modeParmsClass, "resetWindowFullScreen", "Z"));
+    settings.ModeParms.GpuLevel = env->GetIntField(modeParms,
+            env->GetFieldID(modeParmsClass, "gpuLevel", "I"));
+    settings.ModeParms.CpuLevel = env->GetIntField(modeParms,
+            env->GetFieldID(modeParmsClass, "cpuLevel", "I"));
 
     // Settings for HeadModelParms
-    jobject headModelParms = env->GetObjectField(vrSettings, env->GetFieldID(vrAppSettingsClass, "headModelParms", "Lorg/gearvrf/utility/VrAppSettings$HeadModelParms;" ));
+    jobject headModelParms = env->GetObjectField(vrSettings,
+            env->GetFieldID(vrAppSettingsClass, "headModelParms",
+                    "Lorg/gearvrf/utility/VrAppSettings$HeadModelParms;"));
     jclass headModelParmsClass = env->GetObjectClass(headModelParms);
-    float interpupillaryDistance = (float)env->GetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "interpupillaryDistance", "F"));
-    if(interpupillaryDistance != interpupillaryDistance){
+    float interpupillaryDistance = (float) env->GetFloatField(headModelParms,
+            env->GetFieldID(headModelParmsClass, "interpupillaryDistance",
+                    "F"));
+    if (interpupillaryDistance != interpupillaryDistance) {
         //Value not set in Java side, current Value is NaN
         //Need to copy the system settings to java side.
-        env->SetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "interpupillaryDistance", "F"), settings.HeadModelParms.InterpupillaryDistance);
-    }else{
+        env->SetFloatField(headModelParms,
+                env->GetFieldID(headModelParmsClass, "interpupillaryDistance",
+                        "F"), settings.HeadModelParms.InterpupillaryDistance);
+    } else {
         settings.HeadModelParms.InterpupillaryDistance = interpupillaryDistance;
     }
-    float eyeHeight = (float)env->GetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "eyeHeight", "F"));
-    if(eyeHeight != eyeHeight){
+    float eyeHeight = (float) env->GetFloatField(headModelParms,
+            env->GetFieldID(headModelParmsClass, "eyeHeight", "F"));
+    if (eyeHeight != eyeHeight) {
         //same as interpupilaryDistance
-        env->SetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "eyeHeight", "F"), settings.HeadModelParms.EyeHeight);
-    }else{
+        env->SetFloatField(headModelParms,
+                env->GetFieldID(headModelParmsClass, "eyeHeight", "F"),
+                settings.HeadModelParms.EyeHeight);
+    } else {
         settings.HeadModelParms.EyeHeight = eyeHeight;
     }
-    float headModelDepth = (float)env->GetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "headModelDepth", "F"));
-    if(headModelDepth != headModelDepth){
-            //same as interpupilaryDistance
-        env->SetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "headModelDepth", "F"), settings.HeadModelParms.HeadModelDepth);
-    }else{
+    float headModelDepth = (float) env->GetFloatField(headModelParms,
+            env->GetFieldID(headModelParmsClass, "headModelDepth", "F"));
+    if (headModelDepth != headModelDepth) {
+        //same as interpupilaryDistance
+        env->SetFloatField(headModelParms,
+                env->GetFieldID(headModelParmsClass, "headModelDepth", "F"),
+                settings.HeadModelParms.HeadModelDepth);
+    } else {
         settings.HeadModelParms.HeadModelDepth = headModelDepth;
     }
-    float headModelHeight = (float)env->GetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "headModelHeight", "F"));
-    if(headModelHeight != headModelHeight){
-            //same as interpupilaryDistance
-        env->SetFloatField(headModelParms, env->GetFieldID(headModelParmsClass, "headModelHeight", "F"), settings.HeadModelParms.HeadModelHeight);
-    }else{
+    float headModelHeight = (float) env->GetFloatField(headModelParms,
+            env->GetFieldID(headModelParmsClass, "headModelHeight", "F"));
+    if (headModelHeight != headModelHeight) {
+        //same as interpupilaryDistance
+        env->SetFloatField(headModelParms,
+                env->GetFieldID(headModelParmsClass, "headModelHeight", "F"),
+                settings.HeadModelParms.HeadModelHeight);
+    } else {
         settings.HeadModelParms.HeadModelHeight = headModelHeight;
     }
+#if 1
+    if (env->GetStaticBooleanField(vrAppSettingsClass,
+            env->GetStaticFieldID(vrAppSettingsClass, "isShowDebugLog", "Z"))) {
+        std::stringstream logInfo;
+        logInfo << "====== General Configuration ======" << std::endl;
+        if (settings.FramebufferPixelsHigh == 0
+                && settings.FramebufferPixelsWide == 0) {
+            logInfo
+                    << "FramebufferPixelsHigh = screen size; FramebufferPixelsWide = screen size \n";
+        } else {
+            logInfo << "FramebufferPixelsHigh = "
+                    << settings.FramebufferPixelsHigh
+                    << "; FrameBufferPixelsWide = "
+                    << settings.FramebufferPixelsWide << std::endl;
+        }
+        logInfo << "ShowLoadingIcon = " << settings.ShowLoadingIcon
+                << "; UseProtectedFramebuffer = "
+                << settings.UseProtectedFramebuffer << "; UseSrgbFramebuffer = "
+                << settings.UseSrgbFramebuffer << "\n";
+        logInfo << "====== Eye Buffer Configuration ======\n";
+        logInfo << "colorFormat = ";
+        switch (settings.EyeBufferParms.colorFormat) {
+        case 0:
+            logInfo << "COLOR_565";
+            break;
+        case 1:
+            logInfo << "COLOR_5551";
+            break;
+        case 2:
+            logInfo << "COLOR_4444";
+            break;
+        case 3:
+            logInfo << "COLOR_8888";
+            break;
+        case 4:
+            logInfo << "COLOR_8888_sRGB";
+            break;
+        default:
+            break;
+        }
+        logInfo << "; depthFormat = ";
+        switch (settings.EyeBufferParms.depthFormat) {
+        case 0:
+            logInfo << "DEPTH_0";
+            break;
+        case 1:
+            logInfo << "DEPTH_16";
+            break;
+        case 2:
+            logInfo << "DEPTH_24";
+            break;
+        case 3:
+            logInfo << "DEPTH_24_STENCIL_8";
+            break;
+        default:
+            break;
+        }
+        logInfo << "; textureFilter = ";
+        switch (settings.EyeBufferParms.textureFilter) {
+        case 0:
+            logInfo << "TEXTURE_FILTER_NEAREST";
+            break;
+        case 1:
+            logInfo << "TEXTURE_FILTER_BILINEAR";
+            break;
+        case 2:
+            logInfo << "TEXTURE_FILTER_ANISO_2";
+            break;
+        case 3:
+            logInfo << "TEXTURE_FILTER_ANISO_4";
+            break;
+        default:
+            break;
+        }
+        logInfo << "; WidthScale = " << settings.EyeBufferParms.WidthScale
+                << "; multiSample = " << settings.EyeBufferParms.multisamples
+                << "; resolution = " << settings.EyeBufferParms.resolution
+                << std::endl;
+        logInfo << "====== Head Model Configuration ======" << std::endl;
+        logInfo << "EyeHeight = " << settings.HeadModelParms.EyeHeight
+                << "; HeadModelDepth = "
+                << settings.HeadModelParms.HeadModelDepth
+                << "; HeadModelHeight = "
+                << settings.HeadModelParms.HeadModelHeight
+                << "; InterpupillaryDistance = "
+                << settings.HeadModelParms.InterpupillaryDistance << std::endl;
+        logInfo << "====== Mode Configuration ======" << std::endl;
+        logInfo << "AllowPowerSave = " << settings.ModeParms.AllowPowerSave
+                << "; CpuLevel = " << settings.ModeParms.CpuLevel
+                << "; GpuLevel = " << settings.ModeParms.GpuLevel
+                << "; ResetWindowFullscreen = "
+                << settings.ModeParms.ResetWindowFullscreen << std::endl;
+        LOGI("%s", logInfo.str().c_str());
+    }
+#endif
 }
 
-void GVRActivity::OneTimeInit( const char * fromPackage, const char * launchIntentJSON, const char * launchIntentURI )
-{
-    app->GetVrJni()->CallVoidMethod( javaObject, oneTimeInitMethodId );
+void GVRActivity::OneTimeInit(const char * fromPackage,
+        const char * launchIntentJSON, const char * launchIntentURI) {
+    app->GetVrJni()->CallVoidMethod(javaObject, oneTimeInitMethodId);
     // Check if we already loaded the model through an intent
     if (!ModelLoaded) {
         InitSceneObject();
     }
 }
 
-void GVRActivity::OneTimeShutdown()
-{
+void GVRActivity::OneTimeShutdown() {
     app->GetVrJni()->CallVoidMethod(javaObject, oneTimeShutdownMethodId);
 
     // Free GL resources
@@ -350,8 +479,7 @@ OVR::Matrix4f GVRActivity::DrawEyeView(const int eye, const float fovDegrees) {
 
 }
 
-OVR::Matrix4f GVRActivity::Frame( const OVR::VrFrame & vrFrame )
-{
+OVR::Matrix4f GVRActivity::Frame(const OVR::VrFrame & vrFrame) {
     JNIEnv* jni = app->GetVrJni();
     jni->CallVoidMethod(javaObject, beforeDrawEyesMethodId);
     jni->CallVoidMethod(javaObject, drawFrameMethodId);
