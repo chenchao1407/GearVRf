@@ -304,7 +304,6 @@ void GVRActivity::Configure(OVR::ovrSettings & settings) {
     } else {
         settings.HeadModelParms.HeadModelHeight = headModelHeight;
     }
-#if 1
     if (env->GetStaticBooleanField(vrAppSettingsClass,
             env->GetStaticFieldID(vrAppSettingsClass, "isShowDebugLog", "Z"))) {
         std::stringstream logInfo;
@@ -398,7 +397,6 @@ void GVRActivity::Configure(OVR::ovrSettings & settings) {
                 << settings.ModeParms.ResetWindowFullscreen << std::endl;
         LOGI("%s", logInfo.str().c_str());
     }
-#endif
 }
 
 void GVRActivity::OneTimeInit(const char * fromPackage,
